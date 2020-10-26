@@ -12,14 +12,26 @@
 #define DEFAULT_FILENAME  "File_"
 #define DEFAULT_FILE_EXTENSTION ".dat"
 #define PATH_DELIMITER '\\'
+#define READ_BUFFER_SIZE 1024
 
 /*----------------------------------------------------------------------------------*/
 /* Custom data types */
+/* Error list */
+typedef enum
+{
+    ERROR_NOERROR,
+    ERROR_INVALIDARG,
+    ERROR_PATHTOOLONG,
+    ERROR_FILEOPEN,
+    ERROR_UNKNOWN
+} ERROR_TYPE;
+
 /* Command line argument types supported */
 typedef enum
 {
     ARGUMENT_PATH = 0,
     ARGUMENT_FILENAME,
+    ARGUMENT_READFROM,
     ARGUMENT_HELP,
     ARGUMENT_MAX /*This item should always be at the end*/
 } ARGUMENT_TYPE;
@@ -36,20 +48,24 @@ const struct Args argument_list[ARGUMENT_MAX] =
 {
     {ARGUMENT_PATH, "-p", "- Path to store the file (absolute paths only)"},
     {ARGUMENT_FILENAME, "-n", "- file name prefix to use" },
+    {ARGUMENT_READFROM, "-r", "- Reads data from file instead of stdin (absolute path only)" },
     {ARGUMENT_HELP, "-help", "- Prints the help instructions"}
 };
 /*----------------------------------------------------------------------------------*/
 /* Local function declarations */
 static void help();
+static void printAndExit(ERROR_TYPE error, const char* displayString, bool printHelp);
 static ARGUMENT_TYPE findArgument(const char* string);
 static void getTimeStamp(char* string);
 /*----------------------------------------------------------------------------------*/
 /* main() start */
 int main(int argc, char* argv[])
 {
-    char* fileName = DEFAULT_FILENAME;
-    char filePath[MAX_FILEPATH_LENGTH] = { '\0' };
-    FILE* file;
+    char writeFileName[MAX_FILEPATH_LENGTH] = DEFAULT_FILENAME;
+    char readFile[MAX_FILEPATH_LENGTH] = { '\0' };
+    char writeFile[MAX_FILEPATH_LENGTH] = { '\0' };
+    FILE* output;
+    FILE* input;
     /* Check for command line arguments */
     if(argc != 1)
     {
@@ -59,76 +75,109 @@ int main(int argc, char* argv[])
             switch(findArgument(argv[i]))
             {
             case ARGUMENT_PATH:
-                strcpy(filePath, argv[i + 1]);
+                if(strlen(argv[i + 1]) > MAX_FILEPATH_LENGTH)
+                {
+                    printAndExit(ERROR_PATHTOOLONG, NULL, false);
+                }
+                else
+                {
+                    strncpy(writeFile, argv[i + 1], sizeof(writeFile));
+                }
                 break;
 
             case ARGUMENT_FILENAME:
-                fileName = argv[i + 1];
+                if(strlen(argv[i + 1]) > MAX_FILEPATH_LENGTH)
+                {
+                    printAndExit(ERROR_PATHTOOLONG, NULL, false);
+                }
+                else
+                {
+                    strncpy(writeFileName, argv[i + 1], sizeof(writeFileName));
+                }
+                break;
+
+            case ARGUMENT_READFROM:
+                if(strlen(argv[i + 1]) > MAX_FILEPATH_LENGTH)
+                {
+                    printAndExit(ERROR_PATHTOOLONG, NULL, false);
+                }
+                else
+                {
+                    strncpy(readFile, argv[i + 1], sizeof(readFile));
+                }
                 break;
 
             case ARGUMENT_HELP:
-                help();
-                exit(1);
+                printAndExit(ERROR_NOERROR, NULL, true);
                 break;
 
             default:
-                printf("invalid argument %s \n", argv[i]);
-                help();
-                exit(1);
+                printAndExit(ERROR_INVALIDARG, argv[i], true);
                 break;
             }
         }
     }
     /* Get current working directory if path not provided by user */
-    if(!strlen(filePath))
+    if(!strlen(writeFile))
     {
-        (void)_getcwd(filePath, MAX_FILEPATH_LENGTH);
+        (void)_getcwd(writeFile, MAX_FILEPATH_LENGTH);
     }
     /* Append path limiter to the end */
-    if(filePath[strlen(filePath) - 1] != PATH_DELIMITER)
+    if(writeFile[strlen(writeFile) - 1] != PATH_DELIMITER)
     {
-        filePath[strlen(filePath)] = PATH_DELIMITER;
+        writeFile[strlen(writeFile)] = PATH_DELIMITER;
     }
 
-    char timeStamp[TIMESTAMP_LENGTH];
-    char currentFile[MAX_FILEPATH_LENGTH] = { '\0' };
     /* File Name is a combination of file prefix and current time stamp. Fetch timestamp */
+    char timeStamp[TIMESTAMP_LENGTH];
     getTimeStamp(timeStamp);
-    if((strlen(filePath) + strlen(timeStamp) + strlen(timeStamp) + strlen(DEFAULT_FILE_EXTENSTION)) > MAX_FILEPATH_LENGTH)
+    strcat(writeFileName, timeStamp);
+    strcat(writeFileName, DEFAULT_FILE_EXTENSTION);
+
+    if((strlen(writeFile) + strlen(writeFileName)) > MAX_FILEPATH_LENGTH)
     {
-        printf("Error! Path length exceeds the max size of %d characters\n", MAX_FILEPATH_LENGTH);
-        exit(1);
+        printAndExit(ERROR_PATHTOOLONG, NULL, false);
     }
     printf("-----------------------------------------------------\n");
 
-    /* Open the file.
-       Note: Since time stamps are unique, the possibility of file overwrite is not considered
-    */
-    strcat(currentFile, filePath);
-    strcat(currentFile, fileName);
-    strcat(currentFile, timeStamp);
-    strcat(currentFile, DEFAULT_FILE_EXTENSTION);
-    /* Open the file for writing*/
-    file = fopen(currentFile, "wb");
-    if(file == NULL)
+    /* Open the input file to read if provided */
+    if(strlen(readFile))
     {
-        printf("Error! Unable to open new file - %s\n", currentFile);
-        exit(1);
+        input = fopen(readFile, "rb");
+        if(input == NULL)
+        {
+            printAndExit(ERROR_FILEOPEN, readFile, false);
+        }
+        printf("Input read from %s \n", readFile);
     }
     else
     {
-        printf("Enter the data to be read: \n");
+        input = stdin;
+        printf("Input read from stdin \n");
+    }
+
+    /* Open the output file for writing
+       Note: Since time stamps are unique, the possibility of file overwrite is not considered
+    */
+    strcat(writeFile, writeFileName);
+    output = fopen(writeFile, "wb");
+    if(output == NULL)
+    {
+        printAndExit(ERROR_FILEOPEN, writeFile, false);
+    }
+    else
+    {
         printf("-----------------------------------------------------\n");
-        /* Continue to read from stdin until end of input is indicated */
+        /* Read until end of input is indicated */
         while(1)
         {
-            char readChar;
-            readChar = getc(stdin);
-            if(readChar != EOF)
+            char readChar[READ_BUFFER_SIZE];
+            unsigned int readSize = fread(&readChar, sizeof(char), READ_BUFFER_SIZE, input);
+            if(readSize)
             {
                 /* Write data to file */
-                fwrite(&readChar, sizeof(readChar), 1, file);
-                fflush(file);
+                fwrite(&readChar, sizeof(char), readSize, output);
+                fflush(output);
             }
             else
             {
@@ -137,10 +186,11 @@ int main(int argc, char* argv[])
                 break;
             }
         }
-        printf("Data saved to file - %s\n", currentFile);
+        printf("Data saved to file - %s\n", writeFile);
         printf("-----------------------------------------------------\n");
-        fclose(file);
+        fclose(output);
     }
+    fclose(input);
     return 0;
 }
 /* main() end */
@@ -163,6 +213,45 @@ static void help(void)
         printf("%s %s \n", argument_list[i].argString, argument_list[i].argDescription);
     }
     printf("-----------------------------------------------------\n");
+}
+/*-----------------------------------------------------------------------------------
+ * Name         : printAndExit
+ * Inputs       : ERROR_TYPE error - Error to be reported
+                  const char* displayString - String to be printed in the error
+                  bool printHelp - Set to true if help should be printed as well.
+ * Outputs      : Argument type.
+ * Description  : Prints error and exits program
+ -----------------------------------------------------------------------------------*/
+static void printAndExit(ERROR_TYPE error, const char* displayString, bool printHelp)
+{
+    switch(error)
+    {
+    case ERROR_INVALIDARG:
+        printf("invalid argument %s \n", displayString);
+        break;
+
+    case ERROR_PATHTOOLONG:
+        printf("Error! Path length exceeds the max length of %d characters \n", MAX_FILEPATH_LENGTH);
+        break;
+
+    case ERROR_FILEOPEN:
+        printf("Error! Unable to open file - %s\n", displayString);
+        break;
+
+    case ERROR_UNKNOWN:
+        printf("Unknown error - %s \n", displayString);
+        break;
+
+    case ERROR_NOERROR:
+    default:
+        break;
+    }
+    if(printHelp)
+    {
+        help();
+    }
+    /* Exit program */
+    exit(1);
 }
 /*-----------------------------------------------------------------------------------
  * Name         : findArgument
