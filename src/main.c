@@ -1,9 +1,9 @@
-#define _CRT_SECURE_NO_WARNINGS
-
-#include <stdio.h>
-#include <stdlib.h>
+/*----------------------------------------------------------------------------------*/
+/* Header includes */
 #include "DataReader.h"
 
+/*----------------------------------------------------------------------------------*/
+/* main() start */
 int main(int argc, char* argv[])
 {
     ERROR_TYPE result = ERROR_NOERROR;
@@ -67,3 +67,5 @@ int main(int argc, char* argv[])
 
     return 0;
 }
+/* main() end */
+/*----------------------------------------------------------------------------------*/

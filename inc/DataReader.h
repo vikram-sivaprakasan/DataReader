@@ -7,7 +7,7 @@
 #define DATA_READER_H
 
 /*----------------------------------------------------------------------------------*/
-/* definitions */
+/* Definitions */
 #define MAX_FILEPATH_LENGTH 255
 #define DEFAULT_FILENAME_PREFIX  "File_"
 #define DEFAULT_FILE_EXTENSTION ".dat"
