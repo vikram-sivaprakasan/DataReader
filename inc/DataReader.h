@@ -32,7 +32,7 @@ typedef enum
     ERROR_PATHTOOLONG,
     ERROR_READ_FILEOPEN,
     ERROR_WRITE_FILEOPEN,
-    ERROR_GRACEFUL_CLOSE,
+    ERROR_HELP_INVOKED,
     ERROR_UNKNOWN,
     ERROR_MAX /*This item should always be at the end*/
 } ERROR_TYPE;
@@ -53,14 +53,16 @@ typedef enum
 extern ERROR_TYPE DataReader_ParseArguments(int pArgc, char* pArgv[]);
 /*-----------------------------------------------------------------------------------
  * Name         : DataReader_ReadData
- * Inputs       : char* pReadFile - Input file to be read from
+ * Inputs       : const char* pReadFile - Input file to be read from
+ *                char* pWriteFile - String buffer to store the output file path
+ *                int pSize - Size of pWriteFile buffer
  * Outputs      : returns -
  *                ERROR_NOERROR - data read is successful
  *                ERROR_READ_FILEOPEN - read file cannot be opened
  *                ERROR_WRITE_FILEOPEN - write file cannot be opened
  * Description  : Reads the data and saves it to the output file.
  -----------------------------------------------------------------------------------*/
-extern ERROR_TYPE DataReader_ReadData(char* pReadFile);
+extern ERROR_TYPE DataReader_ReadData(const char* pReadFile, char* pWriteFile, int pSize);
 /*-----------------------------------------------------------------------------------
  * Name         : DataReader_GetWriteFilePath
  * Inputs       :

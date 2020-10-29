@@ -45,7 +45,7 @@ const struct Errors error_list[ERROR_MAX] =
     {ERROR_PATHTOOLONG, "Error! Path exceeds max length"},
     {ERROR_READ_FILEOPEN, "Error! Unable to open file for read"},
     {ERROR_WRITE_FILEOPEN, "Error! Unable to open file for write"},
-    {ERROR_GRACEFUL_CLOSE, ""},
+    {ERROR_HELP_INVOKED, "Program help requested"},
     {ERROR_UNKNOWN, "Unknown error"}
 };
 /*----------------------------------------------------------------------------------*/
@@ -64,11 +64,11 @@ static void getTimeStamp(char* pTimeStamp);
 ERROR_TYPE DataReader_ParseArguments(int pArgc, char* pArgv[])
 {
     ERROR_TYPE ret = ERROR_NOERROR;
-    /* Check for command line arguments */
-    if(pArgc != 1)
+    /* Check for passed arguments */
+    if(pArgc)
     {
         int i;
-        for(i = 1; i < pArgc; i = i + 2)
+        for(i = 0; i < pArgc; i = i + 2)
         {
             switch(findArgument(pArgv[i]))
             {
@@ -87,13 +87,14 @@ ERROR_TYPE DataReader_ParseArguments(int pArgc, char* pArgv[])
                 break;
 
             case ARGUMENT_HELP:
-                DataReader_Help();
-                /* Since help is being printed, program execution is stopped */
-                ret = ERROR_GRACEFUL_CLOSE;
+                return(ERROR_HELP_INVOKED);
                 break;
 
             default:
-                ret = ERROR_INVALIDARG;
+                /* Reset all config for an invalid argument */
+                fl_WritePath[0] = '\0';
+                fl_WriteFilePrefix[0] = '\0';
+                return(ERROR_INVALIDARG);
                 break;
             }
         }
@@ -101,7 +102,7 @@ ERROR_TYPE DataReader_ParseArguments(int pArgc, char* pArgv[])
     return ret;
 }
 /*----------------------------------------------------------------------------------*/
-ERROR_TYPE DataReader_ReadData(char* pReadFile)
+ERROR_TYPE DataReader_ReadData(const char* pReadFile, char* pWriteFile, int pSize)
 {
     FILE* output;
     FILE* input;
@@ -109,6 +110,7 @@ ERROR_TYPE DataReader_ReadData(char* pReadFile)
     /* determine the output file with full path */
     if(!defineWriteFile(writeFile, sizeof(writeFile)))
     {
+        pWriteFile = '\0';
         return(ERROR_PATHTOOLONG);
     }
     /* Open the input file to read if provided */
@@ -131,11 +133,11 @@ ERROR_TYPE DataReader_ReadData(char* pReadFile)
     output = fopen(writeFile, "wb");
     if(output == NULL)
     {
+        strncpy(pWriteFile, writeFile, strlen(writeFile) < pSize ? strlen(writeFile) : pSize);
         return(ERROR_WRITE_FILEOPEN);
     }
     else
     {
-        printf("-----------------------------------------------------\n");
         /* Read until end of input */
         while(1)
         {
@@ -152,15 +154,13 @@ ERROR_TYPE DataReader_ReadData(char* pReadFile)
                 break;
             }
         }
-        printf("-----------------------------------------------------\n");
-        printf("Data saved to file - %s\n", writeFile);
-        printf("-----------------------------------------------------\n");
         fclose(output);
         if(input != stdin)
         {
             fclose(input);
         }
     }
+    strncpy(pWriteFile, writeFile, strlen(writeFile) < pSize ? strlen(writeFile) : pSize);
     return(ERROR_NOERROR);
 }
 /*----------------------------------------------------------------------------------*/

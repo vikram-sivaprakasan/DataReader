@@ -8,13 +8,19 @@ int main(int argc, char* argv[])
 {
     ERROR_TYPE result = ERROR_NOERROR;
     /* Parse the arguments */
-    result = DataReader_ParseArguments(argc, argv);
+    if(argc > 1)
+    {
+        /* The first argument is the program name. It can be skipped */
+        result = DataReader_ParseArguments(argc - 1, &argv[1]);
+    }
+
     if(result == ERROR_NOERROR)
     {
         /* Start data read */
         while(1)
         {
             char readFile[MAX_FILEPATH_LENGTH] = { '\0' };
+            char writeFile[MAX_FILEPATH_LENGTH] = { '\0' };
             char choice;
 
             printf("------------------Data Reader------------------------\n");
@@ -29,8 +35,15 @@ int main(int argc, char* argv[])
             case 's':
             case 'S':
                 /* No action */
+                printf("-----------------------------------------------------\n");
                 printf("Input read from stdin \n");
-                result = DataReader_ReadData("");
+                printf("-----------------------------------------------------\n");
+                if(ERROR_NOERROR == DataReader_ReadData("", writeFile, sizeof(writeFile)))
+                {
+                    printf("-----------------------------------------------------\n");
+                    printf("Data saved to - %s\n", writeFile);
+                    printf("-----------------------------------------------------\n");
+                }
                 break;
 
             case 'f':
@@ -39,7 +52,12 @@ int main(int argc, char* argv[])
                 (void)scanf("%s", readFile);
                 printf("-----------------------------------------------------\n");
                 printf("Input read from %s \n", readFile);
-                result = DataReader_ReadData(readFile);
+                if(ERROR_NOERROR == DataReader_ReadData(readFile, writeFile, sizeof(writeFile)))
+                {
+                    printf("-----------------------------------------------------\n");
+                    printf("Data saved to - %s\n", writeFile);
+                    printf("-----------------------------------------------------\n");
+                }
                 break;
 
             case 'e':
@@ -59,6 +77,10 @@ int main(int argc, char* argv[])
                 printf("%s\n", DataReader_ConvertErrorToString(result));
             }
         }
+    }
+    else if(result == ERROR_HELP_INVOKED)
+    {
+        DataReader_Help();
     }
     else
     {
