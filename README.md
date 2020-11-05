@@ -8,6 +8,7 @@ All arguments are optional
 | ------   | ------      |   ------              | 
 |-p        | Path to store the file  | absolute paths alone are supported currently. Defaults to current working directory if not provided. |
 |-n        | File name prefix to use | Default prefix is _File_  _  |
+|-s        | Maximum size limit for output file (in KB) | Default value set to _65535 KB_  |
 |-help     | Prints the help instructions |
 
 ## Usage
@@ -18,7 +19,7 @@ All arguments are optional
 - Use key combination __< Enter > < Ctrl+z > < Enter > < Ctrl+z > < Enter >__ to generate EOF and close the file when reading from _stdin_
 
 ```
-DataReader.exe -p <directory path> -n <Preferred file name prefix>
+DataReader.exe -p <directory path> -n <Preferred file name prefix> -s <Output file size limit>
 ```
 
 ## Build

@@ -32,19 +32,22 @@ struct Errors
 /* Command line argument list */
 const struct Args argument_list[ARGUMENT_MAX] =
 {
-    {ARGUMENT_PATH, "-p", "- Path to store the file (absolute paths only)"},
-    {ARGUMENT_FILENAME, "-n", "- file fileName prefix to use" },
-    {ARGUMENT_HELP, "-help", "- Prints the help instructions"}
+    {ARGUMENT_PATH, "-p", ": Path to store the file (absolute paths only)"},
+    {ARGUMENT_FILENAME, "-n", ": File Name prefix to use" },
+    {ARGUMENT_MAXFILESIZE, "-s", ": Maximum size limit for output file (in KB)" },
+    {ARGUMENT_HELP, "-help", ": Prints the help instructions"}
 };
 
 /* Error list */
 const struct Errors error_list[ERROR_MAX] =
 {
     {ERROR_NOERROR, "No error"},
-    {ERROR_INVALIDARG, "Error! Invalid Arguments"},
-    {ERROR_PATHTOOLONG, "Error! Path exceeds max length"},
-    {ERROR_READ_FILEOPEN, "Error! Unable to open file for read"},
-    {ERROR_WRITE_FILEOPEN, "Error! Unable to open file for write"},
+    {ERROR_INVALIDARG, "Invalid Arguments"},
+    {ERROR_PATHTOOLONG, "Path exceeds max length"},
+    {ERROR_INVALIDFILESIZE, "Max output file size limit is invalid"},
+    {ERROR_READ_FILEOPEN, "Unable to open file for read"},
+    {ERROR_WRITE_FILEOPEN, "Unable to open file for write"},
+    {ERROR_FILE_SIZELIMIT_REACHED, "Maximum output file size has been reached"},
     {ERROR_HELP_INVOKED, "Program help requested"},
     {ERROR_UNKNOWN, "Unknown error"}
 };
@@ -52,11 +55,13 @@ const struct Errors error_list[ERROR_MAX] =
 /* Static variables */
 static char fl_WritePath[MAX_FILEPATH_LENGTH] = { '\0' };
 static char fl_WriteFilePrefix[MAX_FILEPATH_LENGTH] = { '\0' };
+static unsigned int fl_MaxOutputFileSize = 0;
 /*----------------------------------------------------------------------------------*/
 /* Local function declarations */
 static ARGUMENT_TYPE findArgument(const char* pString);
 static bool initializeWritePath(const char* pWritePath, unsigned int pSize);
 static bool initializeWriteFilePrefix(const char* pWriteFilePrefix, unsigned int pSize);
+static bool initializeOutputFileSizeLimit(const char* pSize);
 static bool defineWriteFile(char* pWriteFile, unsigned int pSize);
 static void getTimeStamp(char* pTimeStamp);
 /*----------------------------------------------------------------------------------*/
@@ -72,6 +77,13 @@ ERROR_TYPE DataReader_ParseArguments(int pArgc, char* pArgv[])
         {
             switch(findArgument(pArgv[i]))
             {
+            case ARGUMENT_FILENAME:
+                if(!initializeWriteFilePrefix(pArgv[i + 1], strlen(pArgv[i + 1])))
+                {
+                    ret = ERROR_PATHTOOLONG;
+                }
+                break;
+
             case ARGUMENT_PATH:
                 if(!initializeWritePath(pArgv[i + 1], strlen(pArgv[i + 1])))
                 {
@@ -79,10 +91,10 @@ ERROR_TYPE DataReader_ParseArguments(int pArgc, char* pArgv[])
                 }
                 break;
 
-            case ARGUMENT_FILENAME:
-                if(!initializeWriteFilePrefix(pArgv[i + 1], strlen(pArgv[i + 1])))
+            case ARGUMENT_MAXFILESIZE:
+                if(!initializeOutputFileSizeLimit(pArgv[i + 1]))
                 {
-                    ret = ERROR_PATHTOOLONG;
+                    ret = ERROR_INVALIDFILESIZE;
                 }
                 break;
 
@@ -92,8 +104,7 @@ ERROR_TYPE DataReader_ParseArguments(int pArgc, char* pArgv[])
 
             default:
                 /* Reset all config for an invalid argument */
-                fl_WritePath[0] = '\0';
-                fl_WriteFilePrefix[0] = '\0';
+                DataReader_ResetArguments();
                 return(ERROR_INVALIDARG);
                 break;
             }
@@ -107,10 +118,12 @@ ERROR_TYPE DataReader_ReadData(const char* pReadFile, char* pWriteFile, int pSiz
     FILE* output;
     FILE* input;
     char writeFile[MAX_FILEPATH_LENGTH] = { '\0' };
-    /* determine the output file with full path */
+    ERROR_TYPE ret = ERROR_NOERROR;
+    /* Determine the output file with full path */
     if(!defineWriteFile(writeFile, sizeof(writeFile)))
     {
         pWriteFile = '\0';
+        /* Fatal error. Return immediately */
         return(ERROR_PATHTOOLONG);
     }
     /* Open the input file to read if provided */
@@ -119,9 +132,9 @@ ERROR_TYPE DataReader_ReadData(const char* pReadFile, char* pWriteFile, int pSiz
         input = fopen(pReadFile, "rb");
         if(input == NULL)
         {
+            /* Fatal error. Return immediately */
             return(ERROR_READ_FILEOPEN);
         }
-
     }
     else
     {
@@ -134,34 +147,55 @@ ERROR_TYPE DataReader_ReadData(const char* pReadFile, char* pWriteFile, int pSiz
     if(output == NULL)
     {
         strncpy(pWriteFile, writeFile, strlen(writeFile) < pSize ? strlen(writeFile) : pSize);
+        /* Fatal error. Return immediately */
         return(ERROR_WRITE_FILEOPEN);
     }
     else
     {
+        unsigned int currentFileSize = 0;
+        bool running = true;
         /* Read until end of input */
-        while(1)
+        while(running)
         {
             char readChar[BUFFER_SIZE];
             unsigned int readSize = fread(&readChar, sizeof(char), BUFFER_SIZE, input);
-            if(readSize)
+            if(currentFileSize <= (fl_MaxOutputFileSize - readSize))
             {
-                /* Write data to file */
-                fwrite(&readChar, sizeof(char), readSize, output);
-                fflush(output);
+                currentFileSize = currentFileSize + readSize;
+                if(readSize)
+                {
+                    /* Write data to file */
+                    fwrite(&readChar, sizeof(char), readSize, output);
+                    fflush(output);
+                }
+                else
+                {
+                    /* File read completed */
+                    running = false;
+                }
             }
             else
             {
-                break;
+                /* File size limit reached. Stop reading */
+                ret = ERROR_FILE_SIZELIMIT_REACHED;
+                running = false;
             }
         }
         fclose(output);
+        /* Do not close stdin */
         if(input != stdin)
         {
             fclose(input);
         }
     }
+    /* Save the generated write file path to the passed buffer */
     strncpy(pWriteFile, writeFile, strlen(writeFile) < pSize ? strlen(writeFile) : pSize);
-    return(ERROR_NOERROR);
+    return(ret);
+}
+/*----------------------------------------------------------------------------------*/
+const unsigned int DataReader_GetMaxOutputFileSize(void)
+{
+    return fl_MaxOutputFileSize / 1024;
 }
 /*----------------------------------------------------------------------------------*/
 const char* DataReader_GetWriteFilePath(void)
@@ -172,6 +206,13 @@ const char* DataReader_GetWriteFilePath(void)
 const char* DataReader_GetWriteFileNamePrefix(void)
 {
     return fl_WriteFilePrefix;
+}
+/*----------------------------------------------------------------------------------*/
+void DataReader_ResetArguments(void)
+{
+    fl_WritePath[0] = '\0';
+    fl_WriteFilePrefix[0] = '\0';
+    fl_MaxOutputFileSize = 0;
 }
 /*----------------------------------------------------------------------------------*/
 const char* DataReader_ConvertErrorToString(ERROR_TYPE pError)
@@ -222,6 +263,23 @@ static ARGUMENT_TYPE findArgument(const char* string)
     return i;
 }
 /*-----------------------------------------------------------------------------------
+ * Name         : initializeOutputFileSizeLimit
+ * Inputs       : const char* pSize - Output file size limit in string format
+ * Outputs      : True for successful config update. False otherwise
+ * Description  : Checks and stores the configured write path
+ -----------------------------------------------------------------------------------*/
+static bool initializeOutputFileSizeLimit(const char* pSize)
+{
+    /* Let the size be in bytes */
+    unsigned int size = atoi(pSize) * 1024;
+    if(size != 0)
+    {
+        fl_MaxOutputFileSize = size;
+        return true;
+    }
+    return false;
+}
+/*-----------------------------------------------------------------------------------
  * Name         : initializeWritePath
  * Inputs       : char* pWritePath - string argument containing the file path
  * Outputs      : True for successful config update. False otherwise
@@ -232,14 +290,16 @@ static bool initializeWritePath(const char* pWritePath, unsigned int pSize)
     /* Ensure the string size does not exceed the max limit */
     if(sizeof(fl_WritePath) > pSize)
     {
-        strncpy(fl_WritePath, pWritePath, pSize);
+        strcpy(fl_WritePath, pWritePath);
         /* Ensure write path ends with Path delimiter */
-        if(fl_WritePath[strlen(fl_WritePath) - 1] != PATH_DELIMITER)
+        char pathDelimiter = PATH_DELIMITER;
+        if(fl_WritePath[strlen(fl_WritePath) - 1] != pathDelimiter)
         {
             if(strlen(fl_WritePath) < sizeof(fl_WritePath))
             {
                 /* Append path delimiter to the end */
-                fl_WritePath[strlen(fl_WritePath)] = PATH_DELIMITER;
+                //fl_WritePath[strlen(fl_WritePath)] = PATH_DELIMITER;
+                strncat(fl_WritePath, &pathDelimiter, 1);
                 return true;
             }
         }
@@ -263,14 +323,15 @@ static bool initializeWriteFilePrefix(const char* pWriteFilePrefix, unsigned int
     /* Ensure the string size does not exceed the max limit */
     if(sizeof(fl_WriteFilePrefix) > pSize)
     {
-        strncpy(fl_WriteFilePrefix, pWriteFilePrefix, pSize);
+        strcpy(fl_WriteFilePrefix, pWriteFilePrefix);
         /* Ensure file name prefix ends with underscore */
-        if(fl_WriteFilePrefix[strlen(fl_WriteFilePrefix) - 1] != '_')
+        char underScore = '_';
+        if(fl_WriteFilePrefix[strlen(fl_WriteFilePrefix) - 1] != underScore)
         {
             if(strlen(fl_WriteFilePrefix) < sizeof(fl_WriteFilePrefix))
             {
                 /* Append path delimiter to the end */
-                fl_WriteFilePrefix[strlen(fl_WriteFilePrefix)] = '_';
+                strncat(fl_WriteFilePrefix, &underScore, 1);
                 return true;
             }
         }
@@ -291,6 +352,12 @@ static bool initializeWriteFilePrefix(const char* pWriteFilePrefix, unsigned int
  -----------------------------------------------------------------------------------*/
 static bool defineWriteFile(char* pWriteFile, unsigned int pSize)
 {
+    /* Set max file size if not configured */
+    if(!fl_MaxOutputFileSize)
+    {
+        (void)initializeOutputFileSizeLimit(DEFAULT_OUTPUT_FILE_SIZE_KB);
+    }
+
     /* Set file path to default working directory if not provided */
     if(!strlen(fl_WritePath))
     {

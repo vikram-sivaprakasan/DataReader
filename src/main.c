@@ -1,6 +1,7 @@
 /*----------------------------------------------------------------------------------*/
 /* Header includes */
 #include "DataReader.h"
+#include "String.h"
 
 /*----------------------------------------------------------------------------------*/
 /* main() start */
@@ -38,12 +39,7 @@ int main(int argc, char* argv[])
                 printf("-----------------------------------------------------\n");
                 printf("Input read from stdin \n");
                 printf("-----------------------------------------------------\n");
-                if(ERROR_NOERROR == DataReader_ReadData("", writeFile, sizeof(writeFile)))
-                {
-                    printf("-----------------------------------------------------\n");
-                    printf("Data saved to - %s\n", writeFile);
-                    printf("-----------------------------------------------------\n");
-                }
+                result = DataReader_ReadData("", writeFile, sizeof(writeFile));
                 break;
 
             case 'f':
@@ -51,13 +47,9 @@ int main(int argc, char* argv[])
                 printf("Enter the file name with full path: \n");
                 (void)scanf("%s", readFile);
                 printf("-----------------------------------------------------\n");
-                printf("Input read from %s \n", readFile);
-                if(ERROR_NOERROR == DataReader_ReadData(readFile, writeFile, sizeof(writeFile)))
-                {
-                    printf("-----------------------------------------------------\n");
-                    printf("Data saved to - %s\n", writeFile);
-                    printf("-----------------------------------------------------\n");
-                }
+                printf("Input read from file - %s \n", readFile);
+                printf("-----------------------------------------------------\n");
+                result = DataReader_ReadData(readFile, writeFile, sizeof(writeFile));
                 break;
 
             case 'e':
@@ -72,9 +64,18 @@ int main(int argc, char* argv[])
                 printf("Invalid input.Please try again\n");
                 break;
             }
+            /* Print output file path if generated */
+            if(strlen(writeFile))
+            {
+                printf("-----------------------------------------------------\n");
+                printf("Write file path - %s\n", writeFile);
+                printf("-----------------------------------------------------\n");
+            }
             if(ERROR_NOERROR != result)
             {
-                printf("%s\n", DataReader_ConvertErrorToString(result));
+                printf("-----------------------------------------------------\n");
+                printf("Error! %s\n", DataReader_ConvertErrorToString(result));
+                printf("-----------------------------------------------------\n");
             }
         }
     }
@@ -84,7 +85,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-        printf("%s\n", DataReader_ConvertErrorToString(result));
+        printf("Error - %s\n", DataReader_ConvertErrorToString(result));
     }
 
     return 0;

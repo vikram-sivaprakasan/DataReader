@@ -9,6 +9,7 @@
 /*----------------------------------------------------------------------------------*/
 /* Definitions */
 #define MAX_FILEPATH_LENGTH 255
+#define DEFAULT_OUTPUT_FILE_SIZE_KB "65535"
 #define DEFAULT_FILENAME_PREFIX  "File_"
 #define DEFAULT_FILE_EXTENSTION ".dat"
 #define PATH_DELIMITER '\\'
@@ -20,6 +21,7 @@ typedef enum
 {
     ARGUMENT_PATH = 0,
     ARGUMENT_FILENAME,
+    ARGUMENT_MAXFILESIZE,
     ARGUMENT_HELP,
     ARGUMENT_MAX /*This item should always be at the end*/
 } ARGUMENT_TYPE;
@@ -30,8 +32,10 @@ typedef enum
     ERROR_NOERROR = 0,
     ERROR_INVALIDARG,
     ERROR_PATHTOOLONG,
+    ERROR_INVALIDFILESIZE,
     ERROR_READ_FILEOPEN,
     ERROR_WRITE_FILEOPEN,
+    ERROR_FILE_SIZELIMIT_REACHED,
     ERROR_HELP_INVOKED,
     ERROR_UNKNOWN,
     ERROR_MAX /*This item should always be at the end*/
@@ -60,9 +64,18 @@ extern ERROR_TYPE DataReader_ParseArguments(int pArgc, char* pArgv[]);
  *                ERROR_NOERROR - data read is successful
  *                ERROR_READ_FILEOPEN - read file cannot be opened
  *                ERROR_WRITE_FILEOPEN - write file cannot be opened
+ *                ERROR_FILE_SIZELIMIT_REACHED - Output file size limit reached
  * Description  : Reads the data and saves it to the output file.
  -----------------------------------------------------------------------------------*/
 extern ERROR_TYPE DataReader_ReadData(const char* pReadFile, char* pWriteFile, int pSize);
+/*-----------------------------------------------------------------------------------
+ * Name         : DataReader_GetMaxOutputFileSize
+ * Inputs       :
+ * Outputs      : returns -
+ *                MaxOutputFileSize
+ * Description  : returns the maximum allowed size of the output file in KB
+ -----------------------------------------------------------------------------------*/
+extern const unsigned int DataReader_GetMaxOutputFileSize(void);
 /*-----------------------------------------------------------------------------------
  * Name         : DataReader_GetWriteFilePath
  * Inputs       :
@@ -79,6 +92,13 @@ extern const char* DataReader_GetWriteFilePath(void);
  * Description  : returns the file name prefix used to save the files
  -----------------------------------------------------------------------------------*/
 extern const char* DataReader_GetWriteFileNamePrefix(void);
+/*-----------------------------------------------------------------------------------
+ * Name         : DataReader_ResetArguments
+ * Inputs       :
+ * Outputs      :
+ * Description  : Resets all configurable arguments of the component
+ -----------------------------------------------------------------------------------*/
+extern void DataReader_ResetArguments(void);
 /*-----------------------------------------------------------------------------------
  * Name         : DataReader_ConvertErrorToString
  * Inputs       : ERROR_TYPE pError - error to be fetched
