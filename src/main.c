@@ -20,8 +20,8 @@ int main(int argc, char* argv[])
         /* Start data read */
         while(1)
         {
-            char readFile[MAX_FILEPATH_LENGTH] = { '\0' };
-            char writeFile[MAX_FILEPATH_LENGTH] = { '\0' };
+            char readFile[MAX_FILEPATH_LENGTH] = { NULL_CHARACTER };
+            char writeFile[MAX_FILEPATH_LENGTH] = { NULL_CHARACTER };
             char choice;
 
             printf("------------------Data Reader------------------------\n");

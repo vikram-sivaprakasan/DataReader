@@ -53,8 +53,8 @@ const struct Errors error_list[ERROR_MAX] =
 };
 /*----------------------------------------------------------------------------------*/
 /* Static variables */
-static char fl_WritePath[MAX_FILEPATH_LENGTH] = { '\0' };
-static char fl_WriteFilePrefix[MAX_FILEPATH_LENGTH] = { '\0' };
+static char fl_WritePath[MAX_FILEPATH_LENGTH] = { NULL_CHARACTER };
+static char fl_WriteFilePrefix[MAX_FILEPATH_LENGTH] = { NULL_CHARACTER };
 static unsigned int fl_MaxOutputFileSize = 0;
 /*----------------------------------------------------------------------------------*/
 /* Local function declarations */
@@ -210,8 +210,8 @@ const char* DataReader_GetWriteFileNamePrefix(void)
 /*----------------------------------------------------------------------------------*/
 void DataReader_ResetArguments(void)
 {
-    fl_WritePath[0] = '\0';
-    fl_WriteFilePrefix[0] = '\0';
+    memset(fl_WritePath, NULL_CHARACTER, sizeof(fl_WritePath));
+    memset(fl_WriteFilePrefix, NULL_CHARACTER, sizeof(fl_WriteFilePrefix));
     fl_MaxOutputFileSize = 0;
 }
 /*----------------------------------------------------------------------------------*/

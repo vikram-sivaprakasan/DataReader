@@ -13,6 +13,7 @@
 #define DEFAULT_FILENAME_PREFIX  "File_"
 #define DEFAULT_FILE_EXTENSTION ".dat"
 #define PATH_DELIMITER '\\'
+#define NULL_CHARACTER '\0'
 
 /*----------------------------------------------------------------------------------*/
 /* Custom data types */
